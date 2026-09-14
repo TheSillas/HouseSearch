@@ -13,14 +13,22 @@
  * Le worker importe lui-même `./maplibre-gl-shared.mjs` (import relatif) :
  * les deux fichiers doivent vivre côte à côte à la racine servie, sans quoi
  * le worker échoue à se charger — silencieusement, sans erreur côté page.
+ *
+ * `public/` est créé au besoin : ces deux copies sont les seuls fichiers qu'il
+ * contienne et toutes deux sont ignorées par git, donc le dossier est vide aux
+ * yeux du dépôt — et un clone neuf, chez Vercel, ne l'a pas. Sans ce mkdir, la
+ * copie échouait sur un ENOENT qui désigne le fichier source, pourtant bien
+ * présent : c'est la destination qui manquait.
  */
-import { copyFileSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(RACINE, "node_modules", "maplibre-gl", "dist");
 const PUBLIC = path.join(RACINE, "public");
+
+mkdirSync(PUBLIC, { recursive: true });
 
 for (const fichier of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
   copyFileSync(path.join(DIST, fichier), path.join(PUBLIC, fichier));
