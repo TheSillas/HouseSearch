@@ -1,0 +1,426 @@
+@import "tailwindcss";
+
+/*
+ * Système visuel — deux couleurs d'accent au maximum :
+ *   « accent »  (vert profond) porte l'interactif et la position favorable ;
+ *   « signal »  (ambre brûlé) marque uniquement l'attention et la position défavorable.
+ * Tout le reste vit dans une échelle de neutres chauds.
+ */
+
+:root {
+  --fond: #fbfaf8;
+  --fond-carte: #ffffff;
+  --fond-doux: #f3f1ec;
+  --trait: #e7e3db;
+  --trait-fort: #d5cfc4;
+
+  --texte: #1a1917;
+  --texte-doux: #67635c;
+  --texte-faible: #726c64;
+
+  --accent: #0b6e63;
+  --accent-fort: #084f47;
+  --accent-doux: #e2efec;
+  --accent-trait: #a8d5cc;
+
+  --signal: #a8501f;
+  --signal-doux: #f8ebe2;
+
+  --ombre-carte: 0 1px 2px rgb(26 25 23 / 0.04), 0 1px 3px rgb(26 25 23 / 0.03);
+  --ombre-flottante: 0 4px 16px rgb(26 25 23 / 0.08), 0 1px 3px rgb(26 25 23 / 0.04);
+  /* Un pouce de curseur ne fait que 26-28 px : l'ombre « flottante », pensée
+     pour soulever une carte entière, y déborde en un halo flou plutôt que d'y
+     lire comme un relief propre. Celle-ci reste resserrée à l'échelle du pouce. */
+  --ombre-pouce: 0 1px 2px rgb(26 25 23 / 0.15), 0 1px 4px rgb(26 25 23 / 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #131211;
+    --fond-carte: #1c1a18;
+    --fond-doux: #24211f;
+    --trait: #322e2a;
+    --trait-fort: #454039;
+
+    --texte: #f5f3f0;
+    --texte-doux: #a8a29a;
+    --texte-faible: #928c83;
+
+    --accent: #4cbdac;
+    --accent-fort: #7fd6c8;
+    --accent-doux: #12332e;
+    --accent-trait: #1f5850;
+
+    --signal: #de9161;
+    --signal-doux: #38251a;
+
+    --ombre-carte: 0 1px 2px rgb(0 0 0 / 0.4);
+    --ombre-flottante: 0 4px 20px rgb(0 0 0 / 0.5);
+    --ombre-pouce: 0 1px 2px rgb(0 0 0 / 0.45), 0 1px 4px rgb(0 0 0 / 0.35);
+  }
+}
+
+@theme inline {
+  --color-fond: var(--fond);
+  --color-carte: var(--fond-carte);
+  --color-doux: var(--fond-doux);
+  --color-trait: var(--trait);
+  --color-trait-fort: var(--trait-fort);
+  --color-texte: var(--texte);
+  --color-texte-doux: var(--texte-doux);
+  --color-texte-faible: var(--texte-faible);
+  --color-accent: var(--accent);
+  --color-accent-fort: var(--accent-fort);
+  --color-accent-doux: var(--accent-doux);
+  --color-accent-trait: var(--accent-trait);
+  --color-signal: var(--signal);
+  --color-signal-doux: var(--signal-doux);
+
+  --font-sans: var(--police-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-carte: var(--ombre-carte);
+  --shadow-flottante: var(--ombre-flottante);
+}
+
+* {
+  border-color: var(--trait);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--police-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Les chiffres sont le contenu principal : ils ne doivent jamais gigoter
+   pendant que le classement se réordonne. */
+.chiffres {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv05" 1;
+}
+
+/* ---------------------------------------------------------------- Curseurs */
+
+.curseur {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  /* Le rail ne fait que 6 px, mais la zone saisissable doit rester confortable
+     au doigt : c'est la hauteur de l'input qui fait la cible tactile. */
+  height: 44px;
+  margin: -8px 0;
+  background: transparent;
+  /* « pan-y » garde le défilement vertical de la page tout en capturant le
+     glissement horizontal : « none » rendait les 44 px du curseur inertes au
+     défilement, soit un quart de l'écran mobile bloqué. */
+  touch-action: pan-y;
+  cursor: pointer;
+}
+
+.curseur::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--remplissage, 50%),
+    var(--fond-doux) var(--remplissage, 50%),
+    var(--fond-doux) 100%
+  );
+}
+
+.curseur::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--remplissage, 50%),
+    var(--fond-doux) var(--remplissage, 50%),
+    var(--fond-doux) 100%
+  );
+}
+
+/* Pouce large : cible tactile confortable au doigt, conforme aux 44 px
+   recommandés une fois la zone de saisie du <input> prise en compte. */
+.curseur::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  width: 28px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: var(--fond-carte);
+  border: 3px solid var(--accent);
+  box-shadow: var(--ombre-pouce);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.curseur::-moz-range-thumb {
+  height: 28px;
+  width: 28px;
+  border: 3px solid var(--accent);
+  border-radius: 999px;
+  background: var(--fond-carte);
+  box-shadow: var(--ombre-pouce);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.curseur:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+.curseur:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.curseur:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.curseur:focus-visible::-moz-range-thumb {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Curseur à zéro : le critère est neutralisé, le pouce doit le dire. */
+.curseur[data-inactif="true"]::-webkit-slider-thumb {
+  border-color: var(--trait-fort);
+}
+.curseur[data-inactif="true"]::-moz-range-thumb {
+  border-color: var(--trait-fort);
+}
+
+/* ------------------------------------------------------------- Plage (min-max) */
+
+/*
+ * Filtre à valeur : deux <input type="range"> superposés sur un même rail.
+ * Chaque piste est rendue transparente (`pointer-events: none`) et seul son
+ * pouce reste cliquable (`pointer-events: auto` sur le pseudo-élément), pour
+ * que les deux réagissent indépendamment même quand ils se chevauchent
+ * visuellement. Le rail visible et le segment coloré sont des éléments à part,
+ * purement décoratifs.
+ */
+.plage-piste {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.plage-rail,
+.plage-segment {
+  position: absolute;
+  top: 50%;
+  height: 6px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.plage-rail {
+  left: 0;
+  right: 0;
+  background: var(--fond-doux);
+}
+.plage-segment {
+  background: var(--accent);
+}
+
+.plage-curseur {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  touch-action: pan-y;
+}
+/*
+ * La piste synthétique fait la même hauteur que le pouce (26 px), pas les
+ * 44 px de la zone de saisie : le navigateur centre nativement la piste dans
+ * la boîte de l'input, puis le pouce dans la piste — sans ce réglage, un
+ * pouce de 26 px dans une piste de 44 px se retrouve calé en haut plutôt que
+ * centré sur le trait visible en dessous.
+ */
+.plage-curseur::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  background: transparent;
+  height: 26px;
+}
+.plage-curseur::-moz-range-track {
+  background: transparent;
+  height: 26px;
+  border: none;
+}
+.plage-curseur::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  height: 26px;
+  width: 26px;
+  margin-top: 0;
+  border-radius: 999px;
+  background: var(--fond-carte);
+  border: 3px solid var(--accent);
+  box-shadow: var(--ombre-pouce);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.plage-curseur::-moz-range-thumb {
+  pointer-events: auto;
+  height: 26px;
+  width: 26px;
+  border-radius: 999px;
+  background: var(--fond-carte);
+  border: 3px solid var(--accent);
+  box-shadow: var(--ombre-pouce);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.plage-curseur:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.plage-curseur:active::-moz-range-thumb {
+  transform: scale(1.15);
+}
+.plage-curseur:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.plage-curseur:focus-visible::-moz-range-thumb {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* -------------------------------------------------------------------- Carte */
+
+/*
+ * Badges des meilleures communes (voir CarteFrance.tsx) : un bouton de 36 px
+ * pour le doigt, une pastille visible plus petite ; les trois premières sont
+ * plus grandes. Hors du CSS utilitaire parce que ces éléments sont créés par
+ * MapLibre, pas par React.
+ */
+.badge-commune-cible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.badge-commune {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 22px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--fond-carte);
+  border: 2px solid var(--fond-carte);
+  box-shadow: var(--ombre-flottante);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+.badge-commune[data-rang="tete"] {
+  height: 28px;
+  min-width: 28px;
+  font-size: 12.5px;
+}
+.badge-commune-cible:hover > .badge-commune,
+.badge-commune[data-survol="true"] {
+  transform: scale(1.25);
+}
+
+/* Les boutons de zoom de MapLibre font 29 px : trop peu pour le doigt. La
+   feuille de MapLibre arrive après celle-ci (chargée avec la carte) : il faut
+   un sélecteur plus spécifique que le sien pour l'emporter. */
+.maplibregl-ctrl.maplibregl-ctrl-group button {
+  width: 36px;
+  height: 36px;
+}
+.maplibregl-ctrl.maplibregl-ctrl-group {
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* Attribution et boutons aux couleurs du thème (MapLibre les livre en blanc). */
+/* MapLibre déclare `.maplibregl-ctrl.maplibregl-ctrl-attrib { background-color:
+   rgba(255,255,255,.5) }` — deux classes, comme une règle à deux classes ici,
+   et sa feuille est chargée après : à spécificité égale elle gagnait, d'où un
+   texte gris clair sur fond blanc translucide en mode sombre. Trois classes. */
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  font-size: 10.5px;
+  background-color: var(--fond-carte);
+  color: var(--texte-doux);
+  border-radius: 8px 0 0 0;
+  padding: 1px 8px;
+}
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib a {
+  color: var(--texte-doux);
+}
+.maplibregl-ctrl.maplibregl-ctrl-group {
+  background: var(--fond-carte);
+  box-shadow: var(--ombre-flottante);
+}
+.maplibregl-ctrl.maplibregl-ctrl-group button + button {
+  border-top-color: var(--trait);
+}
+.maplibregl-ctrl.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--filtre-icone-carte, none);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Les icônes de zoom sont des SVG noirs incrustés : on les inverse. */
+    --filtre-icone-carte: invert(1) brightness(1.4);
+  }
+}
+
+/* ------------------------------------------------------------ Accessibilité */
+
+:where(a, button, input, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Le repère personnel sur la carte : une goutte pleine, différente des badges ronds numérotés. */
+.repere-carte {
+  width: 22px;
+  height: 22px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--accent-fort);
+  border: 2px solid var(--fond-carte);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.repere-carte::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--fond-carte);
+}

@@ -1,0 +1,39 @@
+{
+  "name": "ouvivre",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/copier-worker-carte.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copier-worker-carte.mjs && node scripts/compresser-dist.mjs",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vitest run",
+    "test:watch": "vitest",
+    "donnees": "node scripts/build-dataset.mjs",
+    "donnees:compresser": "node scripts/compresser-dist.mjs",
+    "verifier": "node scripts/verifier.mjs"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.7.0",
+    "motion": "^13.2.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "playwright": "^1.63.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^5.0.0",
+    "xlsx": "^0.18.5"
+  }
+}

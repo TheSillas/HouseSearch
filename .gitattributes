@@ -1,0 +1,3 @@
+# Les jeux départementaux sont des archives gzip : toute normalisation de fins
+# de ligne les corromprait, et avec elles toutes les fiches de commune.
+*.gz binary

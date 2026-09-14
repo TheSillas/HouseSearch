@@ -1,0 +1,57 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# aperçus de contrôle
+/apercus
+/scripts/tmp
+
+# copiés depuis node_modules à chaque dev/build (voir scripts/copier-worker-carte.mjs)
+/public/maplibre-gl-worker.mjs
+/public/maplibre-gl-shared.mjs
+/.cache-insee
+
+# jeu de données
+# Les extractions brutes (440 Mo) se rejouent avec les importateurs : voir CLAUDE.md.
+/data/raw
+# Seuls les .gz voyagent (33 Mo contre 378 Mo en clair) ; regions.ts lit le
+# clair quand il est là, le .gz sinon. Régénérés par `npm run donnees:compresser`.
+/data/dist/*.json

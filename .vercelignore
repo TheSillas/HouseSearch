@@ -1,0 +1,17 @@
+# Ce qui ne monte pas chez Vercel.
+# Sans ce fichier, Vercel se rabat sur .gitignore ; on l'écrit pour que
+# l'envoi soit explicite et indépendant de l'état du dépôt.
+
+node_modules
+.next
+apercus
+scripts/tmp
+.cache-insee
+*.tsbuildinfo
+
+# Les extractions brutes (440 Mo) ne servent qu'aux importateurs, en local.
+data/raw
+
+# Seuls les .gz voyagent : 33 Mo contre 378 Mo en clair, et `regions.ts`
+# retombe dessus quand le clair est absent. Voir next.config.ts.
+data/dist/*.json
