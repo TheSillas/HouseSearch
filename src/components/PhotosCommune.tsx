@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 /**
  * Photos d'une commune, depuis Wikimedia Commons.
@@ -172,6 +173,20 @@ export function photosDe(codeInsee: string): Promise<Photo[]> {
   return promesse;
 }
 
+/**
+ * Le glissement d'une photo à l'autre. Un ressort plutôt qu'une durée : le
+ * mouvement s'arrête naturellement au lieu de buter, et une photo rattrapée en
+ * plein vol par une nouvelle flèche repart de là où elle est.
+ */
+const TRANSITION_GLISSEMENT = { type: "spring" as const, stiffness: 320, damping: 34, mass: 0.8 };
+
+/** `sens` vaut +1 vers la suivante, -1 vers la précédente (voir PhotosCommune). */
+const variantesPhoto = {
+  entre: (sens: number) => ({ x: sens * 56, opacity: 0 }),
+  presente: { x: 0, opacity: 1 },
+  sort: (sens: number) => ({ x: sens * -56, opacity: 0 }),
+};
+
 type Etat = { statut: "chargement" } | { statut: "pret"; photos: Photo[] } | { statut: "erreur" };
 
 /**
@@ -183,6 +198,10 @@ type Etat = { statut: "chargement" } | { statut: "pret"; photos: Photo[] } | { s
 export function PhotosCommune({ codeInsee, nom }: { codeInsee: string; nom: string }) {
   const [etat, setEtat] = useState<Etat>({ statut: "chargement" });
   const [ouverte, setOuverte] = useState<Photo | null>(null);
+  // +1 vers la suivante, -1 vers la précédente : la photo sortante s'en va du
+  // côté d'où arrive l'entrante, sans quoi le mouvement ne dit rien du sens.
+  const [sens, setSens] = useState(1);
+  const reduitLesAnimations = useReducedMotion();
 
   useEffect(() => {
     let actif = true;
@@ -199,12 +218,32 @@ export function PhotosCommune({ codeInsee, nom }: { codeInsee: string; nom: stri
 
   // Navigation dans la photo agrandie : la liste est celle de la bande, dans
   // le même ordre, en boucle. Flèches du clavier et boutons latéraux.
-  const photos = etat.statut === "pret" ? etat.photos : [];
+  // Mémoïsé : sans cela le tableau vide de l'état « chargement » est neuf à
+  // chaque rendu, et il fait repartir le préchargement des voisines comme le
+  // mémo de `decaler` à chaque fois.
+  const photos = useMemo(() => (etat.statut === "pret" ? etat.photos : []), [etat]);
   const indexOuverte = ouverte ? photos.findIndex((p) => p.id === ouverte.id) : -1;
-  const decaler = (pas: number) => {
-    if (photos.length < 2 || indexOuverte < 0) return;
-    setOuverte(photos[(indexOuverte + pas + photos.length) % photos.length]);
-  };
+  const decaler = useCallback(
+    (pas: number) => {
+      if (photos.length < 2 || indexOuverte < 0) return;
+      setSens(pas > 0 ? 1 : -1);
+      setOuverte(photos[(indexOuverte + pas + photos.length) % photos.length]);
+    },
+    [photos, indexOuverte],
+  );
+
+  // Les deux voisines sont chargées pendant qu'on regarde la photo courante :
+  // sans cela, chaque flèche laisse un vide le temps du téléchargement, et
+  // l'animation glisse sur une image absente. Le navigateur les a alors en
+  // cache, et le passage est immédiat.
+  useEffect(() => {
+    if (indexOuverte < 0 || photos.length < 2) return;
+    for (const pas of [1, -1]) {
+      const voisine = photos[(indexOuverte + pas + photos.length) % photos.length];
+      const image = new Image();
+      image.src = voisine.grande;
+    }
+  }, [indexOuverte, photos]);
 
   useEffect(() => {
     if (!ouverte) return;
@@ -217,14 +256,12 @@ export function PhotosCommune({ codeInsee, nom }: { codeInsee: string; nom: stri
       } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.stopImmediatePropagation();
         e.preventDefault();
-        if (photos.length < 2) return;
-        const i = photos.findIndex((p) => p.id === ouverte.id);
-        setOuverte(photos[(i + (e.key === "ArrowRight" ? 1 : -1) + photos.length) % photos.length]);
+        decaler(e.key === "ArrowRight" ? 1 : -1);
       }
     };
     window.addEventListener("keydown", surTouche, true);
     return () => window.removeEventListener("keydown", surTouche, true);
-  }, [ouverte, photos]);
+  }, [ouverte, decaler]);
 
   if (etat.statut === "chargement") {
     return (
@@ -253,11 +290,11 @@ export function PhotosCommune({ codeInsee, nom }: { codeInsee: string; nom: stri
   return (
     <>
       <ul
-        className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+        className="flex snap-x snap-mandatory scroll-px-2 gap-2 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:thin]"
         aria-label={`Photos de ${nom} (Wikimedia Commons)`}
       >
         {etat.photos.map((photo) => (
-          <li key={photo.id} className="shrink-0">
+          <li key={photo.id} className="shrink-0 snap-start">
             <button
               type="button"
               onClick={() => setOuverte(photo)}
@@ -292,18 +329,53 @@ export function PhotosCommune({ codeInsee, nom }: { codeInsee: string; nom: stri
           role="dialog"
           aria-modal="true"
           aria-label={`Photo de ${nom}`}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/85 p-4"
           onClick={() => setOuverte(null)}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={ouverte.grande}
-            alt={ouverte.description ?? `Photo de ${nom}`}
-            className="max-h-[78vh] max-w-full rounded-lg object-contain shadow-flottante"
-            onClick={(e) => e.stopPropagation()}
-          />
+          {/* Les deux photos se superposent en position absolue le temps du
+              passage : la sortante s'en va d'un côté pendant que l'entrante
+              arrive de l'autre. Sans cette superposition, elles se poussent
+              dans le flux et le mouvement part de travers — `mode="popLayout"`
+              ne s'en sort pas ici, `drag` lui disputant la transformation en x.
+              `custom` porte le sens jusqu'aux variantes, la sortante comprise,
+              qui n'est plus rendue au moment où elle s'anime.
+
+              Glisser la photo la fait défiler : c'est le geste attendu au
+              doigt, et il suit le contenu au lieu de viser une flèche. */}
+          <div className="relative min-h-0 w-full flex-1 overflow-hidden">
+            <AnimatePresence initial={false} custom={sens}>
+              <motion.img
+                key={ouverte.id}
+                custom={sens}
+                src={ouverte.grande}
+                alt={ouverte.description ?? `Photo de ${nom}`}
+                variants={variantesPhoto}
+                initial={reduitLesAnimations ? "presente" : "entre"}
+                animate="presente"
+                exit={reduitLesAnimations ? "presente" : "sort"}
+                transition={
+                  reduitLesAnimations
+                    ? { duration: 0 }
+                    : { x: TRANSITION_GLISSEMENT, opacity: { duration: 0.18 } }
+                }
+                drag={photos.length > 1 ? "x" : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.18}
+                onDragEnd={(_, info) => {
+                  // Un geste franc suffit : la distance seule oblige à traverser
+                  // l'écran, la vitesse seule déclenche sur un frôlement.
+                  const franchi =
+                    Math.abs(info.offset.x) > 90 || Math.abs(info.velocity.x) > 450;
+                  if (franchi) decaler(info.offset.x < 0 ? 1 : -1);
+                }}
+                className="absolute inset-0 m-auto max-h-full max-w-full cursor-grab rounded-lg object-contain shadow-flottante active:cursor-grabbing"
+                draggable={false}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </AnimatePresence>
+          </div>
           <p
-            className="mt-3 max-w-[720px] text-center text-[12.5px] leading-snug text-white/85"
+            className="max-w-[720px] shrink-0 text-center text-[12.5px] leading-snug text-white/85"
             onClick={(e) => e.stopPropagation()}
           >
             {photos.length > 1 && (

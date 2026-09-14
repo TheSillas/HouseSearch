@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BandeauSelection } from "./BandeauSelection";
+import { LienCarte } from "./LienCarte";
 
 /**
  * Habillage des pages à lire (fiches, méthode) : colonne de lecture, en-tête
@@ -12,18 +13,22 @@ export function ChromeSite({ children, large = false }: { children: React.ReactN
   return (
     <div className={`mx-auto flex min-h-dvh flex-col px-5 sm:px-7 ${large ? "max-w-[1800px]" : "max-w-3xl"}`}>
       <header className="flex items-center justify-between py-4">
-        <Link href="/" className="group flex items-baseline gap-2">
+        {/* Le titre ramène toujours à la carte, et au classement qu'on y avait
+            réglé : les priorités voyagent dans la requête de l'adresse. */}
+        <LienCarte className="group flex items-baseline gap-2">
           <span className="text-[17px] font-semibold tracking-tight">Où Vivre</span>
           <span className="hidden text-[13px] text-texte-faible sm:inline">
             comparateur sur données publiques
           </span>
-        </Link>
-        <Link
-          href="/methodologie"
+        </LienCarte>
+        {/* Les sources aussi gardent les réglages : on doit pouvoir aller y
+            vérifier un millésime et revenir à son classement. */}
+        <LienCarte
+          vers="/methodologie"
           className="rounded-full border border-trait px-3 py-1.5 text-[13px] text-texte-doux transition-colors hover:border-trait-fort hover:text-texte"
         >
           Sources
-        </Link>
+        </LienCarte>
       </header>
 
       <main id="contenu" className="flex-1">

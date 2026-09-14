@@ -16,13 +16,80 @@ import { useValeurDifferee } from "@/lib/useValeurDifferee";
 import type { CritereId } from "@/lib/types";
 
 /**
+ * Une borne saisissable. Le texte tapé vit à part de la valeur tant qu'il n'est
+ * pas validé : sinon, effacer le champ pour retaper imposerait un 0 transitoire
+ * à la plage. Une saisie vide ou illisible revient à la valeur en cours, et
+ * toute valeur est ramenée dans les bornes du jeu de données — on ne filtre pas
+ * sur un prix que personne n'atteint.
+ */
+function ChampBorne({
+  valeur,
+  min,
+  max,
+  decimales,
+  libelle,
+  onValider,
+}: {
+  valeur: number;
+  min: number;
+  max: number;
+  decimales: number;
+  libelle: string;
+  onValider: (valeur: number) => void;
+}) {
+  const [saisie, setSaisie] = useState<string | null>(null);
+  const affiche = saisie ?? nombre(valeur, decimales);
+
+  const valider = () => {
+    if (saisie === null) return;
+    // La virgule décimale française et les espaces de milliers viennent de
+    // `nombre()` : on les rend à un format que Number sait lire.
+    const brut = Number(saisie.replace(/\s/g, "").replace(",", "."));
+    setSaisie(null);
+    if (!Number.isFinite(brut)) return;
+    onValider(Math.min(Math.max(brut, min), max));
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={affiche}
+      aria-label={libelle}
+      onChange={(e) => setSaisie(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={valider}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") {
+          setSaisie(null);
+          e.currentTarget.blur();
+        }
+      }}
+      className="chiffres w-full min-w-0 rounded border border-transparent bg-transparent px-1 py-0.5 text-[12px] text-texte-doux transition-colors hover:border-trait focus:border-accent focus:bg-carte focus:text-texte focus:outline-none"
+    />
+  );
+}
+
+/**
  * Une plage min-max pour un critère : deux curseurs superposés sur un même
- * rail (voir `.plage-*` dans globals.css).
+ * rail (voir `.plage-*` dans globals.css), et les deux bornes saisissables au
+ * clavier.
  *
  * Quand les deux poignées coïncident (plage réduite à un point, ou valeurs
  * proches), celle posée en dernier dans le DOM intercepte le clic. `actif`
  * bascule laquelle des deux passe au-dessus au dernier appui, pour que
  * l'une comme l'autre restent saisissables au doigt comme à la souris.
+ *
+ * Les bornes sont aussi des champs : sur un prix au m² qui court sur plusieurs
+ * milliers d'euros, ou un rayon en kilomètres, un rail de 170 px ne permet pas
+ * de viser « 2 500 » — chaque pixel vaut des dizaines d'unités. Le curseur sert
+ * à explorer, le champ à poser une valeur exacte ; les deux écrivent le même
+ * état. La saisie n'est prise en compte qu'à la validation (Entrée) ou à la
+ * sortie du champ : à chaque frappe, « 2 » puis « 25 » puis « 250 »
+ * reclasseraient 34 746 communes trois fois pour rien.
  */
 function LignePlage({
   borne,
@@ -52,14 +119,31 @@ function LignePlage({
       <span className="block truncate text-[13px] font-medium" title={borne.mesureLibelle}>
         {borne.mesureLibelle}
       </span>
-      <span
-        className="chiffres block truncate text-[12px] text-texte-doux"
-        title={`${nombre(valeurLocale.min, borne.decimales)} – ${libelleValeur(valeurLocale.max)}`}
-      >
-        {nombre(valeurLocale.min, borne.decimales)}
-        {" – "}
-        {libelleValeur(valeurLocale.max)}
-      </span>
+      {/* Les deux bornes, saisissables. `commettre` n'est pas appelé ici :
+          `onChange` transmet directement la valeur validée, qui redescend par
+          `valeur` et resynchronise la valeur locale. */}
+      <div className="flex items-center gap-0.5 text-[12px] text-texte-doux">
+        <ChampBorne
+          valeur={valeurLocale.min}
+          min={borne.min}
+          max={valeurLocale.max}
+          decimales={borne.decimales}
+          libelle={`${borne.mesureLibelle}, minimum (valeur à saisir)`}
+          onValider={(v) => onChange({ min: v, max: Math.max(valeurLocale.max, v) })}
+        />
+        <span aria-hidden="true">–</span>
+        <ChampBorne
+          valeur={valeurLocale.max}
+          min={valeurLocale.min}
+          max={borne.max}
+          decimales={borne.decimales}
+          libelle={`${borne.mesureLibelle}, maximum (valeur à saisir)`}
+          onValider={(v) => onChange({ min: Math.min(valeurLocale.min, v), max: v })}
+        />
+        {borne.unite && (
+          <span className="shrink-0 whitespace-nowrap pl-0.5 text-texte-faible">{borne.unite}</span>
+        )}
+      </div>
 
       <div className="plage-piste mt-1.5">
         <span className="plage-rail" aria-hidden="true" />
@@ -83,7 +167,7 @@ function LignePlage({
           onPointerUp={commettre}
           onKeyUp={commettre}
           onBlur={commettre}
-          aria-label={`${borne.mesureLibelle}, minimum`}
+          aria-label={`${borne.mesureLibelle}, minimum (curseur)`}
           aria-valuetext={libelleValeur(valeurLocale.min)}
         />
         <input
@@ -101,7 +185,7 @@ function LignePlage({
           onPointerUp={commettre}
           onKeyUp={commettre}
           onBlur={commettre}
-          aria-label={`${borne.mesureLibelle}, maximum`}
+          aria-label={`${borne.mesureLibelle}, maximum (curseur)`}
           aria-valuetext={libelleValeur(valeurLocale.max)}
         />
       </div>

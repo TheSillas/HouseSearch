@@ -6,6 +6,7 @@
  * Contrôle ce que le typage et les tests unitaires ne voient pas : le
  * réordonnancement sans rechargement, les cibles tactiles, le débordement
  * horizontal, la validité des listes de définitions, les erreurs d'hydratation,
+ * le retour au classement depuis une fiche, la saisie des bornes de filtre,
  * et le poids réellement transféré.
  */
 import { chromium } from "playwright";
@@ -280,6 +281,70 @@ async function main() {
     "la sélection survit au rechargement",
   );
   await pageSelection.evaluate(() => localStorage.clear());
+  await pageSelection.close();
+
+  // Revenir au classement : on enchaîne deux fiches depuis la carte, puis la
+  // flèche du volet doit rendre la main à la liste — pas à la fiche
+  // précédente — en gardant les priorités réglées. Ces deux points ne se
+  // voient qu'ici : le typage ne dit rien d'un historique de navigation, et
+  // une navigation douce laisse la sous-page active d'un emplacement
+  // parallèle en place tant qu'on ne la retire pas soi-même.
+  const pageRetour = await bureau.newPage();
+  const REGLAGE = "?p=100-0-0-0-0-0-0-0-0-0-0";
+  await pageRetour.goto(`${base}/${REGLAGE}`, { waitUntil: "networkidle" });
+  await pageRetour.waitForSelector(".maplibregl-canvas", { timeout: 120_000 });
+
+  const liens = await pageRetour.$$eval("ul li a[href^='/ville/']", (as) =>
+    as.slice(0, 2).map((a) => a.getAttribute("href")),
+  );
+  verifier(
+    liens.every((h) => (h ?? "").includes("p=100-")),
+    "les liens du classement emportent les priorités réglées",
+    liens[0],
+  );
+
+  // La première fiche s'ouvre depuis la liste ; la seconde par la recherche,
+  // seul chemin réel une fois le volet ouvert — sur ordinateur il couvre le
+  // classement. C'est exactement l'enchaînement qui piégeait `router.back()`.
+  await pageRetour.click(`ul li a[href='${liens[0]}']`);
+  await pageRetour.waitForSelector("[aria-label^='Fiche de']", { timeout: 20_000 });
+  await pageRetour.fill("input[role='combobox']", "Annecy");
+  await pageRetour.click("li[role='option'] button");
+  await pageRetour.waitForFunction(
+    () => location.pathname === "/ville/annecy",
+    undefined,
+    { timeout: 20_000 },
+  );
+  const avantRetour = new URL(pageRetour.url()).pathname;
+  await pageRetour.click("button[aria-label='Fermer la fiche et revenir au classement']");
+  await pageRetour.waitForTimeout(800);
+  const apresRetour = new URL(pageRetour.url());
+  verifier(
+    apresRetour.pathname === "/" && apresRetour.search.includes("p=100-"),
+    "la flèche du volet revient au classement réglé, pas à la fiche précédente",
+    `${avantRetour} → ${apresRetour.pathname}${apresRetour.search}`,
+  );
+  verifier(
+    (await pageRetour.$$("[aria-label^='Fiche de']")).length === 0,
+    "le volet disparaît vraiment quand on revient au classement",
+  );
+
+  // Les bornes des filtres se saisissent au clavier : sur un prix au m² qui
+  // court jusqu'à plusieurs dizaines de milliers d'euros, le rail ne permet
+  // pas de viser une valeur précise.
+  await pageRetour.click("summary:has-text('Filtres avancés')");
+  const champMax = pageRetour.locator("input[aria-label*='maximum (valeur à saisir)']").first();
+  await champMax.waitFor({ timeout: 10_000 });
+  await champMax.fill("2500");
+  await champMax.press("Enter");
+  await pageRetour.waitForTimeout(900);
+  verifier(
+    new URL(pageRetour.url()).searchParams.get("f")?.includes("_2500") ?? false,
+    "une borne de filtre se saisit au clavier et s'applique",
+    await champMax.inputValue(),
+  );
+  await pageRetour.close();
+
   await bureau.close();
 
   await navigateur.close();

@@ -56,6 +56,25 @@ interface ReglagesUrl {
   couverture: number;
   repere: ReperePoint | null;
 }
+
+/**
+ * Pose les réglages dans une requête d'adresse, en retirant ceux restés à leur
+ * valeur par défaut : une adresse partagée ne porte que ce qui a été choisi.
+ * Les paramètres étrangers déjà présents sont laissés intacts.
+ */
+function appliquerReglages(params: URLSearchParams, valeurs: ReglagesUrl): URLSearchParams {
+  if (valeurs.repere) params.set(PARAM_REPERE, encoderRepere(valeurs.repere));
+  else params.delete(PARAM_REPERE);
+  if (valeurs.couverture === TOLERANCE_PAR_DEFAUT) params.delete(PARAM_COUVERTURE);
+  else params.set(PARAM_COUVERTURE, encoderCouverture(valeurs.couverture));
+  if (estParDefaut(valeurs.poids)) params.delete(PARAM_POIDS);
+  else params.set(PARAM_POIDS, encoderPoids(valeurs.poids));
+  if (estFiltresVides(valeurs.filtres)) params.delete(PARAM_FILTRES);
+  else params.set(PARAM_FILTRES, encoderFiltres(valeurs.filtres));
+  if (valeurs.departements.length === 0) params.delete(PARAM_DEPARTEMENTS);
+  else params.set(PARAM_DEPARTEMENTS, encoderDepartements(valeurs.departements));
+  return params;
+}
 import type { Commune, CritereId } from "@/lib/types";
 
 /**
@@ -339,21 +358,29 @@ export function Comparateur({
   const ecrireUrl = useCallback(
     (valeurs: ReglagesUrl) => {
       const url = new URL(window.location.href);
-      if (valeurs.repere) url.searchParams.set(PARAM_REPERE, encoderRepere(valeurs.repere));
-      else url.searchParams.delete(PARAM_REPERE);
-      if (valeurs.couverture === TOLERANCE_PAR_DEFAUT) url.searchParams.delete(PARAM_COUVERTURE);
-      else url.searchParams.set(PARAM_COUVERTURE, encoderCouverture(valeurs.couverture));
-      if (estParDefaut(valeurs.poids)) url.searchParams.delete(PARAM_POIDS);
-      else url.searchParams.set(PARAM_POIDS, encoderPoids(valeurs.poids));
-      if (estFiltresVides(valeurs.filtres)) url.searchParams.delete(PARAM_FILTRES);
-      else url.searchParams.set(PARAM_FILTRES, encoderFiltres(valeurs.filtres));
-      if (valeurs.departements.length === 0) url.searchParams.delete(PARAM_DEPARTEMENTS);
-      else url.searchParams.set(PARAM_DEPARTEMENTS, encoderDepartements(valeurs.departements));
+      appliquerReglages(url.searchParams, valeurs);
       window.history.replaceState(null, "", url);
       enAttente.current = null;
     },
     [],
   );
+
+  // La même requête, mais construite depuis l'état courant plutôt que lue dans
+  // l'adresse : l'écriture d'URL est différée (voir DELAI_URL), les liens ne
+  // peuvent donc pas s'appuyer dessus sans risquer un réglage en retard d'un
+  // cran. Elle suit tous les liens internes — ouvrir une commune, aller aux
+  // sources — pour qu'un retour à la carte retrouve le classement composé.
+  const recherche = useMemo(() => {
+    const params = appliquerReglages(new URLSearchParams(), {
+      poids,
+      filtres,
+      departements,
+      couverture: couvertureMin,
+      repere,
+    });
+    const chaine = params.toString();
+    return chaine ? `?${chaine}` : "";
+  }, [poids, filtres, departements, couvertureMin, repere]);
 
   // L'URL suit les curseurs et les filtres pour que le réglage soit
   // partageable, sans entrée d'historique à chaque pixel parcouru. Le dernier
@@ -493,9 +520,9 @@ export function Comparateur({
   const ouvrirCommune = useCallback(
     (codeInsee: string) => {
       const commune = communeParCode.get(codeInsee);
-      if (commune) router.push(`/ville/${commune.slug}`, { scroll: false });
+      if (commune) router.push(`/ville/${commune.slug}${recherche}`, { scroll: false });
     },
-    [communeParCode, router],
+    [communeParCode, router, recherche],
   );
   const communeOuverte = useMemo(() => {
     const correspondance = pathname.match(/^\/ville\/([^/]+)$/);
@@ -596,7 +623,7 @@ export function Comparateur({
       <aside className="relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-carte lg:h-full lg:w-[400px] lg:flex-none lg:border-r lg:border-trait xl:w-[440px]">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-trait px-4 py-2.5">
           <div className="min-w-0">
-            <Link href="/" className="text-[17px] font-semibold tracking-tight">
+            <Link href={`/${recherche}`} className="text-[17px] font-semibold tracking-tight">
               Où Vivre
             </Link>
             <h1 className="truncate text-[12.5px] leading-tight text-texte-doux">
@@ -608,7 +635,7 @@ export function Comparateur({
             </h1>
           </div>
           <Link
-            href="/methodologie"
+            href={`/methodologie${recherche}`}
             className="shrink-0 rounded-full border border-trait px-3 py-2 text-[12.5px] text-texte-doux transition-colors hover:border-trait-fort hover:text-texte"
           >
             Sources
@@ -736,6 +763,7 @@ export function Comparateur({
                   poids={poids}
                   anime={anime}
                   classe={!neutre}
+                  recherche={recherche}
                   onSurvol={setSurvolee}
                   onCibler={ciblerCommune}
                 />

@@ -42,6 +42,7 @@ export const LigneResultat = memo(function LigneResultat({
   poids,
   anime,
   classe,
+  recherche,
   onSurvol,
   onCibler,
 }: {
@@ -51,6 +52,9 @@ export const LigneResultat = memo(function LigneResultat({
   anime: boolean;
   /** Faux quand tous les curseurs sont à zéro : il n'y a alors pas de rang. */
   classe: boolean;
+  /** Les réglages courants, en requête d'adresse : la fiche ouverte les emporte
+      pour que le retour à la carte retrouve ce classement. */
+  recherche: string;
   onSurvol: (codeInsee: string | null) => void;
   onCibler: (codeInsee: string) => void;
 }) {
@@ -92,7 +96,7 @@ export const LigneResultat = memo(function LigneResultat({
                   <span className="sr-only">{rang === 1 ? "1re" : `${rang}e`} — </span>
                 )}
                 <Link
-                  href={`/ville/${commune.slug}`}
+                  href={`/ville/${commune.slug}${recherche}`}
                   scroll={false}
                   className="rounded-sm outline-offset-2 transition-colors hover:text-accent"
                 >
