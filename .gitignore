@@ -55,3 +55,6 @@ next-env.d.ts
 # Seuls les .gz voyagent (33 Mo contre 378 Mo en clair) ; regions.ts lit le
 # clair quand il est là, le .gz sinon. Régénérés par `npm run donnees:compresser`.
 /data/dist/*.json
+
+# état d'exécution local de Claude Code (identifiant de session, PID)
+/.claude/*.lock
